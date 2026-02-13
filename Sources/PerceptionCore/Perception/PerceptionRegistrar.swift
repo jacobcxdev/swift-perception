@@ -1,10 +1,10 @@
 import IssueReporting
 
-#if canImport(SwiftUI)
+#if canImport(SwiftUI) && !os(Android)
   import SwiftUI
 #endif
 
-#if DEBUG && canImport(SwiftUI)
+#if DEBUG && canImport(SwiftUI) && !os(Android)
   import MachO
 #endif
 
@@ -21,7 +21,7 @@ public struct PerceptionRegistrar: Sendable {
   #if DEBUG
     public let _isPerceptionCheckingEnabled: Bool
   #endif
-  #if DEBUG && canImport(SwiftUI)
+  #if DEBUG && canImport(SwiftUI) && !os(Android)
     fileprivate let perceptionChecks = _ManagedCriticalState<[Int: Bool]>([:])
   #endif
 
@@ -54,14 +54,14 @@ public struct PerceptionRegistrar: Sendable {
   ///   - subject: An instance of a perceptible type.
   ///   - keyPath: The key path of a perceived property.
   @_disfavoredOverload
-  #if DEBUG && canImport(SwiftUI)
+  #if DEBUG && canImport(SwiftUI) && !os(Android)
     @_transparent
   #endif
   public func access<Subject: Perceptible, Member>(
     _ subject: Subject,
     keyPath: KeyPath<Subject, Member>
   ) {
-    #if DEBUG && canImport(SwiftUI)
+    #if DEBUG && canImport(SwiftUI) && !os(Android)
       check()
     #endif
     #if canImport(Observation)
@@ -250,7 +250,7 @@ extension PerceptionRegistrar: Hashable {
   }
 #endif
 
-#if DEBUG && canImport(SwiftUI)
+#if DEBUG && canImport(SwiftUI) && !os(Android)
   extension PerceptionRegistrar {
     @_transparent
     @usableFromInline

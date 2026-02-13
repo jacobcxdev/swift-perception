@@ -34,7 +34,7 @@ public var isPerceptionCheckingEnabled: Bool {
   set { perceptionChecking.withCriticalRegion { $0 = newValue } }
 }
 
-#if DEBUG && canImport(SwiftUI)
+#if DEBUG && canImport(SwiftUI) && !os(Android)
   private let perceptionChecking = _ManagedCriticalState(true)
 #else
   private let perceptionChecking = _ManagedCriticalState(false)
