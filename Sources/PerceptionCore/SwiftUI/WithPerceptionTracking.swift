@@ -1,4 +1,4 @@
-#if canImport(SwiftUI) && !os(Android)
+#if canImport(SwiftUI)
   import SwiftUI
 
   /// A view that perceives changes to perceptible models.
@@ -78,15 +78,21 @@
       case tracked(() -> Content)
 
       init(_ content: @escaping () -> Content) {
-        if #available(iOS 17, macOS 14, tvOS 17, watchOS 10, *), !isObservationBeta {
-          #if DEBUG
-            self = .instrumented(content)
-          #else
-            self = .direct(content())
-          #endif
-        } else {
+        #if os(Android)
+          // On Android, Compose doesn't observe Swift's Observation framework natively.
+          // Always use perception tracking to bridge TCA state → Compose recomposition.
           self = .tracked(content)
-        }
+        #else
+          if #available(iOS 17, macOS 14, tvOS 17, watchOS 10, *), !isObservationBeta {
+            #if DEBUG
+              self = .instrumented(content)
+            #else
+              self = .direct(content())
+            #endif
+          } else {
+            self = .tracked(content)
+          }
+        #endif
       }
     }
 
@@ -105,7 +111,14 @@
 
       case .tracked(let content):
         let _ = id
-        return withPerceptionTracking(content, onChange: { id &+= 1 })
+        #if os(Android)
+          // Compose requires @State mutations on the main thread to trigger recomposition.
+          return withPerceptionTracking(content, onChange: {
+            Task { @MainActor in id &+= 1 }
+          })
+        #else
+          return withPerceptionTracking(content, onChange: { id &+= 1 })
+        #endif
       }
     }
 
