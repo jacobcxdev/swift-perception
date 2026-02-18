@@ -216,7 +216,7 @@ public func withPerceptionTracking<T>(
   _ apply: () -> T,
   onChange: @autoclosure () -> @Sendable () -> Void
 ) -> T {
-  #if DEBUG && canImport(SwiftUI) && !os(Android)
+  #if DEBUG && canImport(SwiftUI)
     let apply = { _PerceptionLocals.$isInPerceptionTracking.withValue(true, operation: apply) }
   #endif
   #if canImport(Observation)
