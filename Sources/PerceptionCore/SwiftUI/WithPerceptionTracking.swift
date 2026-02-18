@@ -124,6 +124,7 @@
     }
   }
 
+  #if !os(Android)
   @available(iOS 15, macOS 12, tvOS 15, watchOS 8, *)
   extension WithPerceptionTracking: AccessibilityRotorContent
   where Content: AccessibilityRotorContent {
@@ -194,6 +195,7 @@
       fatalError()
     }
   }
+  #endif
 
   @available(iOS 14, macOS 11, tvOS 14, watchOS 7, *)
   extension WithPerceptionTracking: ToolbarContent where Content: ToolbarContent {
