@@ -26,6 +26,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/xctest-dynamic-overlay", from: "1.6.0"),
     .package(url: "https://github.com/swiftlang/swift-syntax", "509.0.0"..<"603.0.0"),
     .package(url: "https://source.skip.tools/skip-fuse.git", from: "1.0.0"),
+    .package(url: "https://source.skip.tools/skip-fuse-ui.git", from: "1.0.0"),
   ],
   targets: [
     .target(
@@ -40,6 +41,7 @@ let package = Package(
       dependencies: [
         .product(name: "IssueReporting", package: "xctest-dynamic-overlay"),
         .product(name: "SkipFuse", package: "skip-fuse", condition: .when(platforms: [.android])),
+        .product(name: "SkipFuseUI", package: "skip-fuse-ui", condition: .when(platforms: [.android])),
       ]
     ),
     .macro(
