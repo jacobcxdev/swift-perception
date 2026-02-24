@@ -222,3 +222,34 @@
     }
   #endif
 #endif
+
+#if os(Android)
+import SkipFuseUI
+
+/// On Android, `WithPerceptionTracking` is a transparent passthrough.
+/// The observation bridge (skip-android-bridge) handles Compose recomposition
+/// directly via JNI, so no SwiftUI `@State`-based change tracking is needed.
+/// This type exists so that user code wrapping view bodies in
+/// `WithPerceptionTracking { }` compiles on Android.
+public struct WithPerceptionTracking<Content: View>: View {
+    private let content: () -> Content
+
+    public init(@ViewBuilder content: @escaping () -> Content) {
+        self.content = content
+    }
+
+    public init(content: @escaping @autoclosure () -> Content) {
+        self.content = content
+    }
+
+    public var body: some View {
+        #if DEBUG
+        _PerceptionLocals.$isInPerceptionTracking.withValue(true) {
+            content()
+        }
+        #else
+        content()
+        #endif
+    }
+}
+#endif
