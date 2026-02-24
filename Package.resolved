@@ -1,5 +1,5 @@
 {
-  "originHash" : "1d9bfce5c050c737f12e1b4a2714024a169554c6e22d43008b3a36cfd7893a9f",
+  "originHash" : "ddbd423fbf336ccaacb70431118260e17f7ec8e1f92e665e9a032ed07faedf5d",
   "pins" : [
     {
       "identity" : "skip",
@@ -47,12 +47,39 @@
       }
     },
     {
+      "identity" : "skip-fuse-ui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://source.skip.tools/skip-fuse-ui.git",
+      "state" : {
+        "revision" : "1955f31c07a1e3a20babff4346d50adfdfab46eb",
+        "version" : "1.13.0"
+      }
+    },
+    {
       "identity" : "skip-lib",
       "kind" : "remoteSourceControl",
       "location" : "https://source.skip.tools/skip-lib.git",
       "state" : {
         "revision" : "112874f0222f4815798c924e2b299ba23eb53111",
         "version" : "1.3.8"
+      }
+    },
+    {
+      "identity" : "skip-model",
+      "kind" : "remoteSourceControl",
+      "location" : "https://source.skip.tools/skip-model.git",
+      "state" : {
+        "revision" : "9636e2a3a1dac662cbe04600e5d6a9e0914c4723",
+        "version" : "1.7.1"
+      }
+    },
+    {
+      "identity" : "skip-ui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://source.skip.tools/skip-ui.git",
+      "state" : {
+        "revision" : "f5571c9148fc0813b29bbf8c2e68967f6e849a90",
+        "version" : "1.49.0"
       }
     },
     {
