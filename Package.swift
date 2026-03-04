@@ -27,6 +27,7 @@ let package = Package(
     .package(url: "https://github.com/swiftlang/swift-syntax", "509.0.0"..<"603.0.0"),
     .package(path: "../skip-fuse"),
     .package(path: "../skip-fuse-ui"),
+    .package(path: "../skip-android-bridge"),
   ],
   targets: [
     .target(
@@ -42,6 +43,7 @@ let package = Package(
         .product(name: "IssueReporting", package: "xctest-dynamic-overlay"),
         .product(name: "SkipFuse", package: "skip-fuse", condition: .when(platforms: [.android])),
         .product(name: "SkipFuseUI", package: "skip-fuse-ui", condition: .when(platforms: [.android])),
+        .product(name: "SkipAndroidBridge", package: "skip-android-bridge", condition: .when(platforms: [.android])),
       ]
     ),
     .macro(

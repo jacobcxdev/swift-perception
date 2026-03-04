@@ -1,5 +1,9 @@
 import IssueReporting
 
+#if os(Android)
+  import SkipAndroidBridge
+#endif
+
 #if canImport(SwiftUI) && !os(Android)
   import SwiftUI
 #endif
@@ -29,6 +33,12 @@ public struct PerceptionRegistrar: Sendable {
     rawValue as! _PerceptionRegistrar
   }
 
+  #if os(Android)
+    @usableFromInline var bridgeObservationRegistrar: SkipAndroidBridge.Observation.ObservationRegistrar {
+      rawValue as! SkipAndroidBridge.Observation.ObservationRegistrar
+    }
+  #endif
+
   /// Creates an instance of the perception registrar.
   ///
   /// You don't need to create an instance of
@@ -41,7 +51,11 @@ public struct PerceptionRegistrar: Sendable {
     #endif
     #if canImport(Observation)
       if #available(iOS 17, macOS 14, tvOS 17, watchOS 10, *), !isObservationBeta {
+        #if os(Android)
+        rawValue = SkipAndroidBridge.Observation.ObservationRegistrar()
+        #else
         rawValue = ObservationRegistrar()
+        #endif
         return
       }
     #endif
@@ -70,10 +84,17 @@ public struct PerceptionRegistrar: Sendable {
         let subject = subject as? any Observable
       {
         func open<S: Observable>(_ subject: S) {
+          #if os(Android)
+          bridgeObservationRegistrar.access(
+            subject,
+            keyPath: unsafeDowncast(keyPath, to: KeyPath<S, Member>.self)
+          )
+          #else
           observationRegistrar.access(
             subject,
             keyPath: unsafeDowncast(keyPath, to: KeyPath<S, Member>.self)
           )
+          #endif
         }
         return open(subject)
       }
@@ -97,10 +118,17 @@ public struct PerceptionRegistrar: Sendable {
         let subject = subject as? any Observable
       {
         func open<S: Observable>(_ subject: S) {
+          #if os(Android)
+          bridgeObservationRegistrar.willSet(
+            subject,
+            keyPath: unsafeDowncast(keyPath, to: KeyPath<S, Member>.self)
+          )
+          #else
           observationRegistrar.willSet(
             subject,
             keyPath: unsafeDowncast(keyPath, to: KeyPath<S, Member>.self)
           )
+          #endif
         }
         return open(subject)
       }
@@ -124,10 +152,17 @@ public struct PerceptionRegistrar: Sendable {
         let subject = subject as? any Observable
       {
         func open<S: Observable>(_ subject: S) {
+          #if os(Android)
+          bridgeObservationRegistrar.didSet(
+            subject,
+            keyPath: unsafeDowncast(keyPath, to: KeyPath<S, Member>.self)
+          )
+          #else
           observationRegistrar.didSet(
             subject,
             keyPath: unsafeDowncast(keyPath, to: KeyPath<S, Member>.self)
           )
+          #endif
         }
         return open(subject)
       }
@@ -154,11 +189,19 @@ public struct PerceptionRegistrar: Sendable {
         let subject = subject as? any Observable
       {
         func open<S: Observable>(_ subject: S) throws -> T {
+          #if os(Android)
+          try bridgeObservationRegistrar.withMutation(
+            of: subject,
+            keyPath: unsafeDowncast(keyPath, to: KeyPath<S, Member>.self),
+            mutation
+          )
+          #else
           try observationRegistrar.withMutation(
             of: subject,
             keyPath: unsafeDowncast(keyPath, to: KeyPath<S, Member>.self),
             mutation
           )
+          #endif
         }
         return try open(subject)
       }
@@ -197,6 +240,36 @@ extension PerceptionRegistrar: Hashable {
       rawValue as! ObservationRegistrar
     }
 
+    #if os(Android)
+    public func access<Subject: Observable, Member>(
+      _ subject: Subject,
+      keyPath: KeyPath<Subject, Member>
+    ) {
+      bridgeObservationRegistrar.access(subject, keyPath: keyPath)
+    }
+
+    public func willSet<Subject: Observable, Member>(
+      _ subject: Subject,
+      keyPath: KeyPath<Subject, Member>
+    ) {
+      bridgeObservationRegistrar.willSet(subject, keyPath: keyPath)
+    }
+
+    public func didSet<Subject: Observable, Member>(
+      _ subject: Subject,
+      keyPath: KeyPath<Subject, Member>
+    ) {
+      bridgeObservationRegistrar.didSet(subject, keyPath: keyPath)
+    }
+
+    public func withMutation<Subject: Observable, Member, T>(
+      of subject: Subject,
+      keyPath: KeyPath<Subject, Member>,
+      _ mutation: () throws -> T
+    ) rethrows -> T {
+      try bridgeObservationRegistrar.withMutation(of: subject, keyPath: keyPath, mutation)
+    }
+    #else
     /// Registers access to a specific property for observation.
     ///
     /// - Parameters:
@@ -247,6 +320,7 @@ extension PerceptionRegistrar: Hashable {
     ) rethrows -> T {
       try observationRegistrar.withMutation(of: subject, keyPath: keyPath, mutation)
     }
+    #endif
   }
 #endif
 
