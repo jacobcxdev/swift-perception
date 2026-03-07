@@ -252,4 +252,16 @@ public struct WithPerceptionTracking<Content: View>: View {
         #endif
     }
 }
+
+private struct _UncheckedSendableView: @unchecked Sendable {
+    let view: any SkipUI.View
+}
+
+extension WithPerceptionTracking: SkipUIBridging {
+    public nonisolated var Java_view: any SkipUI.View {
+        return MainActor.assumeIsolated {
+            _UncheckedSendableView(view: body.Java_viewOrEmpty)
+        }.view
+    }
+}
 #endif
