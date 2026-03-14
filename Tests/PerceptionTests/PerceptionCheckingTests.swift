@@ -4,8 +4,25 @@
   import SwiftUI
   import XCTest
 
-  @available(iOS 16, macOS 13, tvOS 16, watchOS 9, *)
+  @available(iOS, introduced: 16, deprecated: 17, obsoleted: 17)
+  @available(macOS, introduced: 13, deprecated: 14, obsoleted: 14)
+  @available(tvOS, introduced: 16, deprecated: 17, obsoleted: 17)
+  @available(watchOS, introduced: 9, deprecated: 10, obsoleted: 10)
   final class PerceptionCheckingTests: XCTestCase {
+    override func setUp() async throws {
+      guard !deploymentTargetIncludesObservation() else {
+        throw XCTSkip(
+          """
+          PerceptionTests were built against a deployment target too recent for perception checking.
+
+          To force these tests to run on macOS, you can override the target OS version explicitly as:
+
+            swift test -Xswiftc -target -Xswiftc arm64-apple-macosx13.0
+          """
+        )
+      }
+    }
+
     @MainActor
     func testNotInPerceptionBody() {
       let model = Model()
@@ -18,7 +35,7 @@
       struct FeatureView: View {
         let model = Model()
         var body: some View {
-          Text(expectRuntimeWarning { model.count }.description)
+          Text(expectRuntimeWarning(on: #"\Model.count"#) { model.count }.description)
         }
       }
       try await render(FeatureView())
@@ -30,7 +47,7 @@
         let model = Model()
         var body: some View {
           Wrapper {
-            Text(expectRuntimeWarning { model.count }.description)
+            Text(expectRuntimeWarning(on: #"\Model.count"#) { model.count }.description)
           }
         }
       }
@@ -65,43 +82,43 @@
       try await render(FeatureView())
     }
 
-    #if !os(macOS)
-      @MainActor
-      func testNotInPerceptionBody_SwiftUIBinding() async throws {
-        struct FeatureView: View {
-          @Perception.Bindable var model: Model
-          var body: some View {
-            Form {
-              TextField("", text: expectRuntimeWarning { $model.text })
-            }
+    @MainActor
+    func testNotInPerceptionBody_SwiftUIBinding() async throws {
+      struct FeatureView: View {
+        @Perception.Bindable var model: Model
+        var body: some View {
+          Form {
+            TextField("", text: expectRuntimeWarning(on: #"\Model.text"#) { $model.text })
           }
         }
-        try await render(FeatureView(model: Model()))
       }
-    #endif
+      #if os(macOS)
+        // NB: This failure is triggered out-of-body by the binding.
+        XCTExpectFailure { $0.compactDescription.contains(#"Perceptible state '\Model.text' was accessed"#) }
+      #endif
+      try await render(FeatureView(model: Model()))
+    }
 
-    #if !os(macOS)
-      @MainActor
-      func testInPerceptionBody_SwiftUIBinding() async throws {
-        struct FeatureView: View {
-          @Perception.Bindable var model: Model
-          var body: some View {
-            WithPerceptionTracking {
-              TextField("", text: $model.text)
-            }
+    @MainActor
+    func testInPerceptionBody_SwiftUIBinding() async throws {
+      struct FeatureView: View {
+        @Perception.Bindable var model: Model
+        var body: some View {
+          WithPerceptionTracking {
+            TextField("", text: $model.text)
           }
         }
-        try await render(FeatureView(model: Model()))
       }
-    #endif
+      try await render(FeatureView(model: Model()))
+    }
 
     @MainActor
     func testNotInPerceptionBody_ForEach() async throws {
       struct FeatureView: View {
         let model: Model
         var body: some View {
-          ForEach(expectRuntimeWarning { model.list }) { model in
-            Text(expectRuntimeWarning { model.count }.description)
+          ForEach(expectRuntimeWarning(on: #"\Model.list"#) { model.list }) { model in
+            Text(expectRuntimeWarning(on: #"\Model.count"#) { model.count }.description)
           }
         }
       }
@@ -124,7 +141,7 @@
       struct FeatureView: View {
         let model: Model
         var body: some View {
-          ForEach(expectRuntimeWarning { model.list }) { model in
+          ForEach(expectRuntimeWarning(on: #"\Model.list"#) { model.list }) { model in
             WithPerceptionTracking {
               Text(model.count.description)
             }
@@ -152,7 +169,7 @@
         var body: some View {
           WithPerceptionTracking {
             ForEach(model.list) { model in
-              Text(expectRuntimeWarning { model.count }.description)
+              Text(expectRuntimeWarning(on: #"\Model.count"#) { model.count }.description)
             }
           }
         }
@@ -199,83 +216,75 @@
       )
     }
 
-    #if !os(macOS)
-      @MainActor
-      func testNotInPerceptionBody_Sheet() async throws {
-        struct FeatureView: View {
-          @Perception.Bindable var model: Model
-          var body: some View {
+    @MainActor
+    func testNotInPerceptionBody_Sheet() async throws {
+      struct FeatureView: View {
+        @Perception.Bindable var model: Model
+        var body: some View {
+          Text("Parent")
+            .sheet(item: expectRuntimeWarning(on: #"\Model.child"#) { $model.child }) { child in
+              Text(expectRuntimeWarning(on: #"\Model.count"#) { child.count }.description)
+            }
+        }
+      }
+      // NB: This failure is triggered out-of-body by the binding.
+      XCTExpectFailure { $0.compactDescription.contains(#"Perceptible state '\Model.child' was accessed"#) }
+      try await render(FeatureView(model: Model(child: Model())))
+    }
+
+    @MainActor
+    func testInnerInPerceptionBody_Sheet() async throws {
+      struct FeatureView: View {
+        @Perception.Bindable var model: Model
+        var body: some View {
+          Text("Parent")
+            .sheet(item: expectRuntimeWarning(on: #"\Model.child"#) { $model.child }) { child in
+              WithPerceptionTracking {
+                Text(child.count.description)
+              }
+            }
+        }
+      }
+      // NB: This failure is triggered out-of-body by the binding.
+      XCTExpectFailure { $0.compactDescription.contains(#"Perceptible state '\Model.child' was accessed"#) }
+      try await render(FeatureView(model: Model(child: Model())))
+    }
+
+    @MainActor
+    func testOuterInPerceptionBody_Sheet() async throws {
+      struct FeatureView: View {
+        @Perception.Bindable var model: Model
+        var body: some View {
+          WithPerceptionTracking {
             Text("Parent")
-              .sheet(item: expectRuntimeWarning { $model.child }) { child in
-                Text(expectRuntimeWarning { child.count }.description)
+              .sheet(item: $model.child) { child in
+                Text(expectRuntimeWarning(on: #"\Model.count"#) { child.count }.description)
               }
           }
         }
-        // NB: This failure is triggered out-of-body by the binding.
-        XCTExpectFailure { $0.compactDescription.contains("Perceptible state was accessed") }
-        try await render(FeatureView(model: Model(child: Model())))
       }
-    #endif
 
-    #if !os(macOS)
-      @MainActor
-      func testInnerInPerceptionBody_Sheet() async throws {
-        struct FeatureView: View {
-          @Perception.Bindable var model: Model
-          var body: some View {
+      try await render(FeatureView(model: Model(child: Model())))
+    }
+
+    @MainActor
+    func testOuterAndInnerInPerceptionBody_Sheet() async throws {
+      struct FeatureView: View {
+        @Perception.Bindable var model: Model
+        var body: some View {
+          WithPerceptionTracking {
             Text("Parent")
-              .sheet(item: expectRuntimeWarning { $model.child }) { child in
+              .sheet(item: $model.child) { child in
                 WithPerceptionTracking {
                   Text(child.count.description)
                 }
               }
           }
         }
-        // NB: This failure is triggered out-of-body by the binding.
-        XCTExpectFailure { $0.compactDescription.contains("Perceptible state was accessed") }
-        try await render(FeatureView(model: Model(child: Model())))
       }
-    #endif
 
-    #if !os(macOS)
-      @MainActor
-      func testOuterInPerceptionBody_Sheet() async throws {
-        struct FeatureView: View {
-          @Perception.Bindable var model: Model
-          var body: some View {
-            WithPerceptionTracking {
-              Text("Parent")
-                .sheet(item: $model.child) { child in
-                  Text(expectRuntimeWarning { child.count }.description)
-                }
-            }
-          }
-        }
-
-        try await render(FeatureView(model: Model(child: Model())))
-      }
-    #endif
-
-    #if !os(macOS)
-      @MainActor
-      func testOuterAndInnerInPerceptionBody_Sheet() async throws {
-        struct FeatureView: View {
-          @Perception.Bindable var model: Model
-          var body: some View {
-            WithPerceptionTracking {
-              Text("Parent")
-                .sheet(item: $model.child) { child in
-                  WithPerceptionTracking {
-                    Text(child.count.description)
-                  }
-                }
-            }
-          }
-        }
-
-        try await render(FeatureView(model: Model(child: Model())))
-      }
-    #endif
+      try await render(FeatureView(model: Model(child: Model())))
+    }
 
     @MainActor
     func testActionClosure() async throws {
@@ -375,7 +384,7 @@
         var body: some View {
           VStack {
             ChildView(model: self.childModel)
-            Text(expectRuntimeWarning { childModel.count }.description)
+            Text(expectRuntimeWarning(on: #"\Model.count"#) { childModel.count }.description)
           }
           .onAppear { let _ = childModel.count }
         }
@@ -389,7 +398,7 @@
       struct ChildView: View {
         let model: Model
         var body: some View {
-          Text(expectRuntimeWarning { model.count }.description)
+          Text(expectRuntimeWarning(on: #"\Model.count"#) { model.count }.description)
             .onAppear { let _ = model.count }
         }
       }
@@ -417,7 +426,7 @@
       struct ChildView: View {
         let model: Model
         var body: some View {
-          Text(expectRuntimeWarning { model.count }.description)
+          Text(expectRuntimeWarning(on: #"\Model.count"#) { model.count }.description)
             .onAppear { let _ = model.count }
         }
       }
@@ -431,7 +440,7 @@
         var body: some View {
           VStack {
             ChildView(model: self.childModel)
-            Text(expectRuntimeWarning { childModel.count }.description)
+            Text(expectRuntimeWarning(on: #"\Model.count"#) { childModel.count }.description)
           }
           .onAppear { let _ = childModel.count }
         }
@@ -526,7 +535,7 @@
         var body: some View {
           WithPerceptionTracking {
             GeometryReader { _ in
-              Text(expectRuntimeWarning { model.count }.description)
+              Text(expectRuntimeWarning(on: #"\Model.count"#) { model.count }.description)
             }
           }
         }
@@ -560,7 +569,7 @@
         }
         var content: some View {
           GeometryReader { _ in
-            Text(expectRuntimeWarning { model.count }.description)
+            Text(expectRuntimeWarning(on: #"\Model.count"#) { model.count }.description)
           }
         }
       }
@@ -597,15 +606,16 @@
 
     @MainActor
     private func render(_ view: some View) async throws {
+      try checkImageRendererAvailable()
       let image = ImageRenderer(content: view).cgImage
       _ = image
       try await Task.sleep(for: .seconds(0.1))
     }
   }
 
-  private func expectRuntimeWarning<R>(failingBlock: () -> R) -> R {
+  private func expectRuntimeWarning<R>(on keyPathString: String, failingBlock: () -> R) -> R {
     XCTExpectFailure(failingBlock: failingBlock) {
-      $0.compactDescription.contains("Perceptible state was accessed")
+      $0.compactDescription.contains("Perceptible state '\(keyPathString)' was accessed")
     }
   }
 
@@ -633,6 +643,18 @@
     @ViewBuilder var content: Content
     var body: some View {
       self.content
+    }
+  }
+
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  private func deploymentTargetIncludesObservation() -> Bool { true }
+
+  @_disfavoredOverload
+  private func deploymentTargetIncludesObservation(_: Void = ()) -> Bool { false }
+
+  private func checkImageRendererAvailable() throws {
+    guard #available(iOS 16, macOS 13, tvOS 16, watchOS 9, *) else {
+      throw XCTSkip("This test requires 'SwiftUI.ImageRenderer' to be available.")
     }
   }
 #endif
